@@ -1,38 +1,22 @@
-"use client";
-
-// Enterprise call-to-action rendered inside the auth brand panel. Opens the
-// SAME in-app Enterprise lead modal used post-login (not the marketing site's
-// /contact page). The visitor is typically NOT authenticated here: the modal
-// requires a work email in that case, and submitLead persists the lead through
-// the user_onboarding service's public contact-sales endpoint instead of the
-// token-gated /leads/enterprise. Shared by the Stack Auth handler and the
+// Enterprise call-to-action rendered inside the auth brand panel. Links out
+// to the enterprise enquiry form. Shared by the Stack Auth handler and the
 // local/OSS auth pages.
 
-import posthog from "posthog-js";
-import { useState } from "react";
-
-import { EnterpriseModal } from "@/components/lead-forms/EnterpriseModal";
 import { Button } from "@/components/ui/button";
-import { PostHogEvent } from "@/constants/posthog-events";
+
+const ENTERPRISE_ENQUIRY_URL =
+  "https://fxk3ltckls6.typeform.com/to/YP0P1k1x?typeform-source=dcxworks.com";
 
 export function AuthEnterpriseCTA() {
-  const [open, setOpen] = useState(false);
-
-  const openModal = () => {
-    setOpen(true);
-    posthog.capture(PostHogEvent.ENTERPRISE_LEAD_OPENED, { source: "auth_page" });
-  };
-
   return (
-    <>
-      <Button
-        variant="outline"
-        onClick={openModal}
-        className="w-full border-white/20 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
-      >
+    <Button
+      asChild
+      variant="outline"
+      className="w-full border-white/20 bg-white/5 text-zinc-100 hover:bg-white/10 hover:text-white"
+    >
+      <a href={ENTERPRISE_ENQUIRY_URL} target="_blank" rel="noopener noreferrer">
         Enterprise Enquiry
-      </Button>
-      <EnterpriseModal open={open} onOpenChange={setOpen} source="auth_page" />
-    </>
+      </a>
+    </Button>
   );
 }

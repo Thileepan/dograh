@@ -272,7 +272,7 @@ function ThirdPartyProviderNotice() {
             <div>
                 <p className="font-medium">Third-party provider data notice</p>
                 <p className="mt-1 leading-6">
-                    Dograh sends data required by the selected model service. This may include prompts,
+                    The platform sends data required by the selected model service. This may include prompts,
                     transcripts, audio, generated text, tool data, and request metadata depending on the
                     provider and service type. Review the provider&apos;s data and retention policies before
                     using sensitive data.
@@ -330,7 +330,7 @@ export function AIModelConfigurationV2Editor({
                 || dograh.speed > dograhSpeedRange.max
             ) {
                 throw new Error(
-                    `Dograh speed must be between ${dograhSpeedRange.min} and ${dograhSpeedRange.max}.`,
+                    `Voice speed must be between ${dograhSpeedRange.min} and ${dograhSpeedRange.max}.`,
                 );
             }
             await onSave({
@@ -392,7 +392,7 @@ export function AIModelConfigurationV2Editor({
             <Tabs value={mode} onValueChange={(value) => setMode(value as ModelMode)} className="space-y-6">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="realtime">Speech to Speech</TabsTrigger>
-                    <TabsTrigger value="dograh">Dograh</TabsTrigger>
+                    <TabsTrigger value="dograh">Managed</TabsTrigger>
                     <TabsTrigger value="byok">BYOK</TabsTrigger>
                 </TabsList>
 

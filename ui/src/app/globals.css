@@ -82,11 +82,11 @@
   /* Single restrained warm accent — used only on primary CTAs + focus rings. */
   --cta: oklch(0.72 0.15 65);
   --cta-foreground: oklch(0.16 0.02 60);
-  /* Giant faded "dograh" wordmark (authentic Proxima Nova letterforms traced
-     from the brand logo PNG — the font is commercial, so the lettering ships
-     as static artwork in /public; fill + 0.9% opacity are baked into the
-     files). Theme-switched here; consumed by .app-surface and .auth-imprint. */
-  --brand-imprint: url("/brand-imprint-light.svg");
+  /* Giant faded "DCXworks" wordmark (lettering rendered from the brand logo
+     PNG and shipped as static artwork in /public; fill + opacity are baked
+     into the files). Theme-switched here; consumed by .app-surface and
+     .auth-imprint. */
+  --brand-imprint: url("/dcxworks-imprint-light.svg");
 }
 
 .dark {
@@ -124,7 +124,7 @@
   /* Warm accent, slightly brighter against the near-black surfaces. */
   --cta: oklch(0.78 0.16 67);
   --cta-foreground: oklch(0.16 0.02 60);
-  --brand-imprint: url("/brand-imprint-dark.svg");
+  --brand-imprint: url("/dcxworks-imprint-dark.svg");
 }
 
 @layer base {
@@ -191,10 +191,36 @@
     .auth-waveform span { animation: none; }
   }
 
+  /* Film-grain noise for the auth brand panel. A tiny tiling feTurbulence
+     SVG shipped as a data URI (no extra request). Decorative only. */
+  .auth-noise {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 160px 160px;
+    opacity: 0.05;
+  }
+
+  /* Sonar rings pulsing outward from the voice-agent illustration, evoking
+     speech being heard. Painted with the warm CTA accent. */
+  .auth-sonar {
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklch, var(--cta) 50%, transparent);
+    animation: auth-sonar 3.6s ease-out infinite;
+  }
+
+  @keyframes auth-sonar {
+    0% { transform: scale(0.45); opacity: 0.6; }
+    70% { opacity: 0.15; }
+    100% { transform: scale(1.1); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-sonar { animation: none; opacity: 0.15; }
+  }
+
   /* Matte app background — flat charcoal (dark) / soft paper (light), NO
      gradients, with one subtle graphic in BOTH themes: the giant faded
-     "dograh" wordmark (--brand-imprint, defined in :root/.dark) pinned to
-     the bottom of the viewport, echoing the dograh.com footer. */
+     "DCXworks" wordmark (--brand-imprint, defined in :root/.dark) pinned to
+     the bottom of the viewport. */
   /* NOTE: background-attachment: fixed positions in VIEWPORT space but only
      paints inside .app-surface, which starts right of the ~270px sidebar —
      the +135px x-shift recentres the wordmark on the VISIBLE canvas. */
@@ -216,7 +242,7 @@
     background-color: oklch(0.165 0.002 80);
   }
 
-  /* Giant faded "dograh" imprint for the auth pages (applied to the AuthShell
+  /* Giant faded "DCXworks" imprint for the auth pages (applied to the AuthShell
      form column, shared by Stack + OSS login/signup). Same --brand-imprint as
      .app-surface; element-relative here (no fixed attachment), so it centers
      and scales to whatever element carries the class. */

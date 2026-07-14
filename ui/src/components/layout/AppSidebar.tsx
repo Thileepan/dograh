@@ -7,7 +7,6 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
   Database,
   FileText,
   Home,
@@ -17,8 +16,8 @@ import {
   Megaphone,
   Phone,
   Settings,
+  Sparkles,
   TrendingUp,
-  UserRound,
   Workflow,
   Wrench,
 } from "lucide-react";
@@ -54,7 +53,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppConfig } from "@/context/AppConfigContext";
-import { useLeadForms } from "@/context/LeadFormsContext";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
 import { useLatestReleaseVersion } from "@/hooks/useLatestReleaseVersion";
 import type { LocalUser } from "@/lib/auth";
@@ -140,11 +138,6 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         icon: TrendingUp,
       },
       {
-        title: "Billing",
-        url: "/billing",
-        icon: CircleDollarSign,
-      },
-      {
         title: "Reports",
         url: "/reports",
         icon: FileText,
@@ -159,7 +152,6 @@ export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { provider, logout, user } = useAuth();
   const { config } = useAppConfig();
-  const { openHireExpert } = useLeadForms();
   const {
     telnyxMissingWebhookPublicKeyCount,
     vonageMissingSignatureSecretCount,
@@ -288,32 +280,37 @@ export function AppSidebar() {
     </Button>
   );
 
-  // "Hire an Expert" CTA, rendered INSIDE the shared footer pill next to the
-  // profile icon. Expanded: label pill filling the row. Collapsed: icon-only.
-  const hireExpertButton = isCollapsed ? (
+  // "Know more about AI Agents" CTA, rendered INSIDE the shared footer pill
+  // next to the profile icon. Expanded: label pill filling the row.
+  // Collapsed: icon-only.
+  const knowMoreButton = isCollapsed ? (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          size="icon"
-          className="h-7 w-7 rounded-full"
-          onClick={() => openHireExpert("sidebar")}
-          aria-label="Hire an Expert"
-        >
-          <UserRound className="h-3.5 w-3.5" />
+        <Button asChild size="icon" className="h-7 w-7 rounded-full">
+          <a
+            href="https://dcxworks.com/custom-ai-agents.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Know more about AI Agents"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </a>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="right">
-        <p>Hire an Expert</p>
+        <p>Know more about AI Agents</p>
       </TooltipContent>
     </Tooltip>
   ) : (
-    <Button
-      size="sm"
-      className="h-7 gap-1.5 rounded-full px-3 text-xs"
-      onClick={() => openHireExpert("sidebar")}
-    >
-      <UserRound className="h-3.5 w-3.5" />
-      Hire an Expert
+    <Button asChild size="sm" className="h-7 gap-1.5 rounded-full px-3 text-xs">
+      <a
+        href="https://dcxworks.com/custom-ai-agents.html"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        About AI Agents
+      </a>
     </Button>
   );
 
@@ -448,7 +445,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {hireExpertButton}
+              {knowMoreButton}
             </div>
           )}
 
@@ -489,7 +486,7 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              {hireExpertButton}
+              {knowMoreButton}
             </div>
           )}
 
