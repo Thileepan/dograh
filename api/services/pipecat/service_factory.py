@@ -74,6 +74,7 @@ from pipecat.services.sarvam.stt import SarvamSTTService, SarvamSTTSettings
 from pipecat.services.sarvam.tts import SarvamTTSService, SarvamTTSSettings
 from pipecat.services.smallest.stt import SmallestSTTService, SmallestSTTSettings
 from pipecat.services.smallest.tts import SmallestTTSService, SmallestTTSSettings
+from pipecat.services.soniox.stt import SonioxSTTService, SonioxSTTSettings
 from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSettings
 from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
 from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
@@ -413,6 +414,18 @@ def create_stt_service(
                 model=user_config.stt.model,
                 language=pipecat_language,
             ),
+            sample_rate=audio_config.transport_in_sample_rate,
+        )
+    elif user_config.stt.provider == ServiceProviders.SONIOX.value:
+        language_code = getattr(user_config.stt, "language", None) or "en"
+        settings_kwargs: dict = {"model": user_config.stt.model}
+        try:
+            settings_kwargs["language_hints"] = [Language(language_code)]
+        except ValueError:
+            pass  # unknown code: let Soniox auto-detect the language
+        return SonioxSTTService(
+            api_key=user_config.stt.api_key,
+            settings=SonioxSTTSettings(**settings_kwargs),
             sample_rate=audio_config.transport_in_sample_rate,
         )
     else:

@@ -64,6 +64,7 @@ class UserConfigurationValidator:
             ServiceProviders.RIME.value: self._check_rime_api_key,
             ServiceProviders.MINIMAX.value: self._check_minimax_api_key,
             ServiceProviders.SMALLEST.value: self._check_smallest_api_key,
+            ServiceProviders.SONIOX.value: self._check_soniox_api_key,
             ServiceProviders.XAI.value: self._check_xai_api_key,
         }
 
@@ -343,6 +344,9 @@ class UserConfigurationValidator:
         )
 
     def _check_sarvam_api_key(self, model: str, api_key: str) -> bool:
+        return True
+
+    def _check_soniox_api_key(self, model: str, api_key: str) -> bool:
         return True
 
     def _check_openrouter_api_key(self, model: str, api_key: str) -> bool:

@@ -593,7 +593,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'azure_speech';
     } & AzureSpeechSttConfiguration) | ({
         provider: 'smallest';
-    } & SmallestAisttConfiguration);
+    } & SmallestAisttConfiguration) | ({
+        provider: 'soniox';
+    } & SonioxSttConfiguration);
     /**
      * Embeddings
      */
@@ -5163,6 +5165,34 @@ export type SmallestAittsConfiguration = {
      * Speech speed multiplier (0.5 to 2.0).
      */
     speed?: number;
+};
+
+/**
+ * Soniox
+ *
+ * Soniox real-time speech-to-text over websocket. Supports 60+ languages including Tamil.
+ */
+export type SonioxSttConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'soniox';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Soniox realtime STT model.
+     */
+    model?: string;
+    /**
+     * Language
+     *
+     * ISO 639-1 language hint for transcription.
+     */
+    language?: string;
 };
 
 /**

@@ -48,6 +48,8 @@ from api.services.configuration.options import (
     SMALLEST_TTS_MODELS,
     SMALLEST_TTS_PRO_VOICES,
     SMALLEST_TTS_VOICES,
+    SONIOX_STT_LANGUAGES,
+    SONIOX_STT_MODELS,
     SPEECHMATICS_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
@@ -92,6 +94,7 @@ class ServiceProviders(str, Enum):
     GOOGLE_VERTEX_REALTIME = "google_vertex_realtime"
     AZURE_REALTIME = "azure_realtime"
     SMALLEST = "smallest"
+    SONIOX = "soniox"
     XAI = "xai"
 
 
@@ -123,6 +126,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.AZURE_REALTIME,
         ServiceProviders.SARVAM,
         ServiceProviders.SMALLEST,
+        ServiceProviders.SONIOX,
         ServiceProviders.XAI,
     ]
     api_key: str | list[str]
@@ -1672,6 +1676,35 @@ SMALLEST_STT_LANGUAGES = [
 ]
 
 
+SONIOX_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Soniox",
+    description=(
+        "Soniox real-time speech-to-text over websocket. "
+        "Supports 60+ languages including Tamil."
+    ),
+    provider_docs_url="https://soniox.com/docs",
+)
+
+
+@register_stt
+class SonioxSTTConfiguration(BaseSTTConfiguration):
+    model_config = SONIOX_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SONIOX] = ServiceProviders.SONIOX
+    model: str = Field(
+        default="stt-rt-v5",
+        description="Soniox realtime STT model.",
+        json_schema_extra={"examples": SONIOX_STT_MODELS},
+    )
+    language: str = Field(
+        default="en",
+        description="ISO 639-1 language hint for transcription.",
+        json_schema_extra={
+            "examples": SONIOX_STT_LANGUAGES,
+            "allow_custom_input": True,
+        },
+    )
+
+
 @register_stt
 class SmallestAISTTConfiguration(BaseSTTConfiguration):
     model_config = SMALLEST_PROVIDER_MODEL_CONFIG
@@ -1706,6 +1739,7 @@ STTConfig = Annotated[
         GladiaSTTConfiguration,
         AzureSpeechSTTConfiguration,
         SmallestAISTTConfiguration,
+        SonioxSTTConfiguration,
     ],
     Field(discriminator="provider"),
 ]
