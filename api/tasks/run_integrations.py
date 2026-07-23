@@ -1,8 +1,11 @@
 """Execute integrations (QA analysis, webhooks) after workflow run completion."""
 
+import json
 import random
+import re
+import tempfile
 from datetime import UTC, datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from loguru import logger
 from pipecat.utils.enums import EndTaskReason
@@ -19,6 +22,7 @@ from api.services.integrations import (
     run_completion_handlers,
 )
 from api.services.pipecat.tracing_config import register_org_langfuse_credentials
+from api.services.storage import get_storage_for_backend
 from api.services.workflow.dto import (
     QANodeData,
     QARFNode,
@@ -301,6 +305,7 @@ async def run_integrations_post_workflow_run(_ctx, workflow_run_id: int):
 
         # Step 8: Build render context (includes annotations from QA and integrations)
         render_context = _build_render_context(workflow_run, public_token)
+        await _attach_transcript_context(render_context, workflow_run, webhook_nodes)
 
         # Step 9: Execute each webhook node
         for node in webhook_nodes:
@@ -328,6 +333,86 @@ async def run_integrations_post_workflow_run(_ctx, workflow_run_id: int):
     except Exception as e:
         logger.error(f"Error running integrations: {e}", exc_info=True)
         raise
+
+
+# Cap the transcript text injected into webhook payloads so a marathon call
+# cannot exceed a receiver's request-size limit.
+_MAX_WEBHOOK_TRANSCRIPT_CHARS = 100_000
+
+# `{{transcript}}` / `{{transcript_json}}` references (NOT `{{transcript_url}}`).
+_TRANSCRIPT_VAR_RE = re.compile(r"\{\{\s*transcript(?:_json)?\s*[|}]")
+# A template value that is exactly `{{transcript_json}}` — substituted
+# structurally so the payload carries a real JSON array, not a stringified one.
+_TRANSCRIPT_JSON_EXACT_RE = re.compile(r"^\s*\{\{\s*transcript_json\s*\}\}\s*$")
+# Stored transcript line shape: "[ts] user: text" / "assistant: text".
+_TRANSCRIPT_LINE_RE = re.compile(
+    r"^(?:\[(?P<timestamp>[^\]]*)\]\s*)?(?P<role>user|assistant):\s?(?P<text>.*)$"
+)
+
+
+def _webhook_templates_reference_transcript(webhook_nodes: List[dict]) -> bool:
+    """True when any webhook payload template uses a transcript variable."""
+    for node in webhook_nodes:
+        template = (node.get("data") or {}).get("payload_template")
+        if template and _TRANSCRIPT_VAR_RE.search(json.dumps(template)):
+            return True
+    return False
+
+
+async def _fetch_transcript_text(workflow_run: WorkflowRunModel) -> Optional[str]:
+    """Download the run's transcript from object storage; None if unavailable."""
+    if not workflow_run.transcript_url:
+        return None
+    try:
+        storage = get_storage_for_backend(workflow_run.storage_backend)
+        with tempfile.NamedTemporaryFile(suffix=".txt") as tmp:
+            if not await storage.adownload_file(workflow_run.transcript_url, tmp.name):
+                return None
+            with open(tmp.name, "rb") as f:
+                text = f.read().decode("utf-8", errors="replace")
+    except Exception as e:
+        logger.warning(f"Failed to fetch transcript for webhook payload: {e}")
+        return None
+    if len(text) > _MAX_WEBHOOK_TRANSCRIPT_CHARS:
+        text = text[:_MAX_WEBHOOK_TRANSCRIPT_CHARS] + "\n[transcript truncated]"
+    return text
+
+
+def _parse_transcript_turns(transcript_text: str) -> List[dict]:
+    """Parse the stored plain-text transcript into structured turns."""
+    turns: List[dict] = []
+    for line in transcript_text.splitlines():
+        match = _TRANSCRIPT_LINE_RE.match(line)
+        if match:
+            turns.append(
+                {
+                    "role": match.group("role"),
+                    "text": match.group("text"),
+                    "timestamp": match.group("timestamp"),
+                }
+            )
+        elif turns and line:
+            # Continuation of a multi-line utterance.
+            turns[-1]["text"] += "\n" + line
+    return turns
+
+
+async def _attach_transcript_context(
+    render_context: Dict[str, Any],
+    workflow_run: WorkflowRunModel,
+    webhook_nodes: List[dict],
+) -> None:
+    """Populate transcript variables, fetching from storage only when a
+    webhook template actually references them."""
+    render_context["transcript"] = ""
+    render_context["transcript_json"] = []
+    if not _webhook_templates_reference_transcript(webhook_nodes):
+        return
+    text = await _fetch_transcript_text(workflow_run)
+    if not text:
+        return
+    render_context["transcript"] = text
+    render_context["transcript_json"] = _parse_transcript_turns(text)
 
 
 def _build_render_context(
@@ -389,6 +474,24 @@ def _build_render_context(
     return context
 
 
+def _render_payload_value(template: Any, render_context: Dict[str, Any]) -> Any:
+    """Render like ``render_template``, except a value that is exactly
+    ``{{transcript_json}}`` is replaced with the structured turn list so the
+    payload carries a real JSON array instead of a stringified one."""
+    if isinstance(template, dict):
+        return {
+            render_template(k, render_context)
+            if isinstance(k, str)
+            else k: _render_payload_value(v, render_context)
+            for k, v in template.items()
+        }
+    if isinstance(template, list):
+        return [_render_payload_value(item, render_context) for item in template]
+    if isinstance(template, str) and _TRANSCRIPT_JSON_EXACT_RE.match(template):
+        return render_context.get("transcript_json") or []
+    return render_template(template, render_context)
+
+
 def _build_webhook_payload(
     webhook_data: WebhookNodeData, render_context: Dict[str, Any]
 ) -> Any:
@@ -398,7 +501,7 @@ def _build_webhook_payload(
     template author didn't reference it. Fill only if absent so a template that
     sets it explicitly keeps its own value.
     """
-    payload = render_template(webhook_data.payload_template or {}, render_context)
+    payload = _render_payload_value(webhook_data.payload_template or {}, render_context)
 
     if isinstance(payload, dict):
         gathered_context = render_context.get("gathered_context") or {}

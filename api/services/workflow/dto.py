@@ -718,7 +718,10 @@ class TriggerNodeData(BaseNodeData):
             "description": (
                 "JSON body of the request. Values are Jinja-rendered against the "
                 "run context — `{{workflow_run_id}}`, `{{gathered_context.foo}}`, "
-                "`{{annotations.qa_xxx}}`, etc."
+                "`{{annotations.qa_xxx}}`, etc. The full call transcript is "
+                "available as `{{transcript}}` (plain text) or "
+                "`{{transcript_json}}` (structured array of "
+                "role/text/timestamp turns when used as the entire value)."
             ),
             "ui_type": PropertyType.json,
             "spec_default": {

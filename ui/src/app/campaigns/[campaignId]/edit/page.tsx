@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 import {
     getCampaignApiV1CampaignCampaignIdGet,
     getCampaignDefaultsApiV1OrganizationsCampaignDefaultsGet,
+    listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet,
     updateCampaignApiV1CampaignCampaignIdPatch
 } from '@/client/sdk.gen';
-import type { CampaignResponse } from '@/client/types.gen';
+import type { CampaignResponse, TelephonyConfigurationListItem } from '@/client/types.gen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export default function EditCampaignPage() {
     // Limits state
     const [orgConcurrentLimit, setOrgConcurrentLimit] = useState<number>(2);
     const [fromNumbersCount, setFromNumbersCount] = useState<number>(0);
+    const [telephonyConfigs, setTelephonyConfigs] = useState<TelephonyConfigurationListItem[]>([]);
 
     // Retry config state
     const [retryEnabled, setRetryEnabled] = useState(true);
@@ -141,6 +143,15 @@ export default function EditCampaignPage() {
                 setOrgConcurrentLimit(response.data.concurrent_call_limit);
                 setFromNumbersCount(response.data.from_numbers_count);
             }
+
+            // CLI supply must reflect the campaign's own telephony config, not
+            // just the org default — fetch the configs list for its counts.
+            const configsResponse = await listTelephonyConfigurationsApiV1OrganizationsTelephonyConfigsGet({
+                headers: { 'Authorization': `Bearer ${accessToken}` },
+            });
+            if (configsResponse.data) {
+                setTelephonyConfigs(configsResponse.data.configurations ?? []);
+            }
         } catch (error) {
             console.error('Failed to fetch campaign limits:', error);
         }
@@ -154,9 +165,16 @@ export default function EditCampaignPage() {
         }
     }, [fetchCampaign, fetchCampaignDefaults, user]);
 
+    // CLI count of the campaign's pinned telephony config; falls back to the
+    // default-config count until the configs list resolves.
+    const campaignTelephonyConfig = telephonyConfigs.find(
+        (c) => c.id === campaign?.telephony_configuration_id,
+    );
+    const availableFromNumbersCount = campaignTelephonyConfig?.phone_number_count ?? fromNumbersCount;
+
     // Effective concurrency limit
-    const effectiveLimit = fromNumbersCount > 0
-        ? Math.min(orgConcurrentLimit, fromNumbersCount)
+    const effectiveLimit = availableFromNumbersCount > 0
+        ? Math.min(orgConcurrentLimit, availableFromNumbersCount)
         : orgConcurrentLimit;
 
     // Handle form submission
@@ -177,8 +195,8 @@ export default function EditCampaignPage() {
                 return;
             }
             if (maxConcurrencyValue > effectiveLimit) {
-                if (fromNumbersCount > 0 && fromNumbersCount < orgConcurrentLimit) {
-                    toast.error(`Max concurrent calls cannot exceed ${effectiveLimit}. You have ${fromNumbersCount} phone number(s) configured - add more CLIs to increase concurrency.`);
+                if (availableFromNumbersCount > 0 && availableFromNumbersCount < orgConcurrentLimit) {
+                    toast.error(`Max concurrent calls cannot exceed ${effectiveLimit}. You have ${availableFromNumbersCount} phone number(s) configured - add more CLIs to increase concurrency.`);
                 } else {
                     toast.error(`Max concurrent calls cannot exceed organization limit (${effectiveLimit})`);
                 }
@@ -336,7 +354,7 @@ export default function EditCampaignPage() {
                             onMaxConcurrencyChange={setMaxConcurrency}
                             effectiveLimit={effectiveLimit}
                             orgConcurrentLimit={orgConcurrentLimit}
-                            fromNumbersCount={fromNumbersCount}
+                            fromNumbersCount={availableFromNumbersCount}
                             retryEnabled={retryEnabled}
                             onRetryEnabledChange={setRetryEnabled}
                             maxRetries={maxRetries}

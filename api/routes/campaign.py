@@ -39,16 +39,23 @@ async def _get_org_concurrent_limit(organization_id: int) -> int:
     return DEFAULT_ORG_CONCURRENCY_LIMIT
 
 
-async def _get_from_numbers_count(organization_id: int) -> int:
-    """Active phone-number count from the org's default telephony config.
+async def _get_from_numbers_count(
+    organization_id: int, telephony_configuration_id: Optional[int] = None
+) -> int:
+    """Active phone-number count for the given telephony config (org-scoped),
+    falling back to the org's default config when none is provided.
     Used to validate ``max_concurrency`` against caller-id supply."""
     try:
-        default_cfg = await db_client.get_default_telephony_configuration(
-            organization_id
-        )
-        if default_cfg:
+        cfg = None
+        if telephony_configuration_id:
+            cfg = await db_client.get_telephony_configuration_for_org(
+                telephony_configuration_id, organization_id
+            )
+        if cfg is None:
+            cfg = await db_client.get_default_telephony_configuration(organization_id)
+        if cfg:
             addresses = await db_client.list_active_normalized_addresses_for_config(
-                default_cfg.id
+                cfg.id
             )
             return len(addresses)
     except Exception:
@@ -56,13 +63,20 @@ async def _get_from_numbers_count(organization_id: int) -> int:
     return 0
 
 
-async def _validate_max_concurrency(max_concurrency: int, organization_id: int) -> None:
-    """Validate max_concurrency against org limit and configured phone numbers.
+async def _validate_max_concurrency(
+    max_concurrency: int,
+    organization_id: int,
+    telephony_configuration_id: Optional[int] = None,
+) -> None:
+    """Validate max_concurrency against org limit and the phone numbers of the
+    campaign's telephony configuration (default config when none is pinned).
 
     Raises HTTPException(400) if the value exceeds the effective limit.
     """
     org_limit = await _get_org_concurrent_limit(organization_id)
-    from_numbers_count = await _get_from_numbers_count(organization_id)
+    from_numbers_count = await _get_from_numbers_count(
+        organization_id, telephony_configuration_id
+    )
     effective_limit = (
         min(org_limit, from_numbers_count) if from_numbers_count > 0 else org_limit
     )
@@ -400,11 +414,6 @@ async def create_campaign(
             except Exception:
                 pass  # Don't block campaign creation if template extraction fails
 
-    if request.max_concurrency is not None:
-        await _validate_max_concurrency(
-            request.max_concurrency, user.selected_organization_id
-        )
-
     # Resolve which telephony config the campaign is pinned to. Explicit value
     # wins; otherwise default to the org's default config so legacy clients keep
     # working through the migration window.
@@ -423,6 +432,15 @@ async def create_campaign(
         )
         if default_cfg:
             telephony_configuration_id = default_cfg.id
+
+    # Validate concurrency against the resolved config's caller-id supply —
+    # the dispatcher pools CLIs from this config, not the org default.
+    if request.max_concurrency is not None:
+        await _validate_max_concurrency(
+            request.max_concurrency,
+            user.selected_organization_id,
+            telephony_configuration_id,
+        )
 
     # Build retry_config dict if provided
     retry_config = None
@@ -640,7 +658,9 @@ async def update_campaign(
 
     if request.max_concurrency is not None:
         await _validate_max_concurrency(
-            request.max_concurrency, user.selected_organization_id
+            request.max_concurrency,
+            user.selected_organization_id,
+            campaign.telephony_configuration_id,
         )
 
     # Build update kwargs
