@@ -22,6 +22,12 @@ from api.services.configuration.options import (
     DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
+    FISH_STT_LANGUAGES,
+    FISH_STT_MODELS,
+    FISH_TTS_DEFAULT_VOICE,
+    FISH_TTS_LANGUAGES,
+    FISH_TTS_LATENCY_MODES,
+    FISH_TTS_MODELS,
     GLADIA_STT_LANGUAGES,
     GLADIA_STT_MODELS,
     GOOGLE_MODELS,
@@ -95,6 +101,7 @@ class ServiceProviders(str, Enum):
     AZURE_REALTIME = "azure_realtime"
     SMALLEST = "smallest"
     SONIOX = "soniox"
+    FISH = "fish"
     XAI = "xai"
 
 
@@ -127,6 +134,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.SARVAM,
         ServiceProviders.SMALLEST,
         ServiceProviders.SONIOX,
+        ServiceProviders.FISH,
         ServiceProviders.XAI,
     ]
     api_key: str | list[str]
@@ -1312,6 +1320,64 @@ class XAITTSConfiguration(BaseServiceConfiguration):
         return "xai-tts"
 
 
+FISH_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Fish Audio",
+    description=(
+        "Fish Audio streaming text-to-speech over websocket, plus file-based "
+        "speech-to-text. TTS voices are reference IDs from the Fish Audio "
+        "library or your own clones."
+    ),
+    provider_docs_url="https://docs.fish.audio",
+)
+
+
+@register_tts
+class FishAudioTTSConfiguration(BaseTTSConfiguration):
+    model_config = FISH_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.FISH] = ServiceProviders.FISH
+    model: str = Field(
+        default="s2-pro",
+        description="Fish Audio TTS model.",
+        json_schema_extra={"examples": list(FISH_TTS_MODELS)},
+    )
+    voice: str = Field(
+        default=FISH_TTS_DEFAULT_VOICE,
+        description=(
+            "Fish Audio reference ID of the voice model — copy it from the voice's "
+            "page on fish.audio, or from a voice cloned in your own account."
+        ),
+        json_schema_extra={"allow_custom_input": True},
+    )
+    language: str = Field(
+        default="en",
+        description="ISO 639-1 language code for synthesis. Fish Audio does not support Tamil.",
+        json_schema_extra={
+            "examples": FISH_TTS_LANGUAGES,
+            "allow_custom_input": True,
+        },
+    )
+    latency: str = Field(
+        default="balanced",
+        description=(
+            "Latency mode. 'balanced' trades a little quality for faster first audio; "
+            "'normal' favours quality."
+        ),
+        json_schema_extra={"examples": list(FISH_TTS_LATENCY_MODES)},
+    )
+    speed: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=2.0,
+        description="Speech speed multiplier (0.5 to 2.0).",
+    )
+    volume: int = Field(
+        default=0,
+        ge=-20,
+        le=20,
+        description="Volume adjustment in dB (-20 to 20).",
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -1328,6 +1394,7 @@ TTSConfig = Annotated[
         MiniMaxTTSConfiguration,
         AzureSpeechTTSConfiguration,
         SmallestAITTSConfiguration,
+        FishAudioTTSConfiguration,
         XAITTSConfiguration,
     ],
     Field(discriminator="provider"),
@@ -1706,6 +1773,31 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
 
 
 @register_stt
+class FishAudioSTTConfiguration(BaseSTTConfiguration):
+    model_config = FISH_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.FISH] = ServiceProviders.FISH
+    model: str = Field(
+        default="asr",
+        description=(
+            "Fish Audio ASR. The endpoint exposes no model choice, so this value "
+            "is not sent to the API."
+        ),
+        json_schema_extra={"examples": list(FISH_STT_MODELS)},
+    )
+    language: str = Field(
+        default="auto",
+        description=(
+            "ISO 639-1 language hint. 'auto' sends no hint and lets Fish Audio "
+            "detect the language."
+        ),
+        json_schema_extra={
+            "examples": FISH_STT_LANGUAGES,
+            "allow_custom_input": True,
+        },
+    )
+
+
+@register_stt
 class SmallestAISTTConfiguration(BaseSTTConfiguration):
     model_config = SMALLEST_PROVIDER_MODEL_CONFIG
     provider: Literal[ServiceProviders.SMALLEST] = ServiceProviders.SMALLEST
@@ -1740,6 +1832,7 @@ STTConfig = Annotated[
         AzureSpeechSTTConfiguration,
         SmallestAISTTConfiguration,
         SonioxSTTConfiguration,
+        FishAudioSTTConfiguration,
     ],
     Field(discriminator="provider"),
 ]

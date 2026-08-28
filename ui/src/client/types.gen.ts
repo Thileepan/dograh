@@ -562,6 +562,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & AzureSpeechTtsConfiguration) | ({
         provider: 'smallest';
     } & SmallestAittsConfiguration) | ({
+        provider: 'fish';
+    } & FishAudioTtsConfiguration) | ({
         provider: 'xai';
     } & XaittsConfiguration);
     /**
@@ -595,7 +597,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'smallest';
     } & SmallestAisttConfiguration) | ({
         provider: 'soniox';
-    } & SonioxSttConfiguration);
+    } & SonioxSttConfiguration) | ({
+        provider: 'fish';
+    } & FishAudioSttConfiguration);
     /**
      * Embeddings
      */
@@ -2480,6 +2484,86 @@ export type FileMetadataResponse = {
     metadata: {
         [key: string]: unknown;
     } | null;
+};
+
+/**
+ * Fish Audio
+ *
+ * Fish Audio streaming text-to-speech over websocket, plus file-based speech-to-text. TTS voices are reference IDs from the Fish Audio library or your own clones.
+ */
+export type FishAudioSttConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'fish';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Fish Audio ASR. The endpoint exposes no model choice, so this value is not sent to the API.
+     */
+    model?: string;
+    /**
+     * Language
+     *
+     * ISO 639-1 language hint. 'auto' sends no hint and lets Fish Audio detect the language.
+     */
+    language?: string;
+};
+
+/**
+ * Fish Audio
+ *
+ * Fish Audio streaming text-to-speech over websocket, plus file-based speech-to-text. TTS voices are reference IDs from the Fish Audio library or your own clones.
+ */
+export type FishAudioTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'fish';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Fish Audio TTS model.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Fish Audio reference ID of the voice model — copy it from the voice's page on fish.audio, or from a voice cloned in your own account.
+     */
+    voice?: string;
+    /**
+     * Language
+     *
+     * ISO 639-1 language code for synthesis. Fish Audio does not support Tamil.
+     */
+    language?: string;
+    /**
+     * Latency
+     *
+     * Latency mode. 'balanced' trades a little quality for faster first audio; 'normal' favours quality.
+     */
+    latency?: string;
+    /**
+     * Speed
+     *
+     * Speech speed multiplier (0.5 to 2.0).
+     */
+    speed?: number;
+    /**
+     * Volume
+     *
+     * Volume adjustment in dB (-20 to 20).
+     */
+    volume?: number;
 };
 
 /**

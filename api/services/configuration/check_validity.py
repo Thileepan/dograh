@@ -65,6 +65,7 @@ class UserConfigurationValidator:
             ServiceProviders.MINIMAX.value: self._check_minimax_api_key,
             ServiceProviders.SMALLEST.value: self._check_smallest_api_key,
             ServiceProviders.SONIOX.value: self._check_soniox_api_key,
+            ServiceProviders.FISH.value: self._check_fish_api_key,
             ServiceProviders.XAI.value: self._check_xai_api_key,
         }
 
@@ -347,6 +348,30 @@ class UserConfigurationValidator:
         return True
 
     def _check_soniox_api_key(self, model: str, api_key: str) -> bool:
+        return True
+
+    def _check_fish_api_key(self, model: str, api_key: str) -> bool:
+        # List the account's voice models as a best-effort smoke test. Only a
+        # clear auth failure rejects the save — other errors (rate limits,
+        # transient 5xx) should not block configuring the provider.
+        try:
+            response = httpx.get(
+                "https://api.fish.audio/model",
+                headers={"Authorization": f"Bearer {api_key}"},
+                params={"page_size": 1},
+                timeout=10.0,
+            )
+        except httpx.RequestError as exc:
+            raise ValueError(
+                "Could not connect to the Fish Audio API. Please check your network "
+                "connection and try again."
+            ) from exc
+        if response.status_code in (401, 402, 403):
+            raise ValueError(
+                "Invalid Fish Audio API key. The key was rejected by the Fish Audio API. "
+                "Please check that your API key is correct and active at "
+                "https://fish.audio/go-api."
+            )
         return True
 
     def _check_openrouter_api_key(self, model: str, api_key: str) -> bool:

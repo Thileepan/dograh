@@ -39,6 +39,8 @@ from pipecat.services.dograh.llm import DograhLLMService
 from pipecat.services.dograh.stt import DograhSTTService, DograhSTTSettings
 from pipecat.services.dograh.tts import DograhTTSService, DograhTTSSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
+from pipecat.services.fish.stt import FishAudioSTTService, FishAudioSTTSettings
+from pipecat.services.fish.tts import FishAudioTTSService, FishAudioTTSSettings
 from pipecat.services.gladia.stt import GladiaSTTService, GladiaSTTSettings
 from pipecat.services.google.llm import GoogleLLMService, GoogleLLMSettings
 from pipecat.services.google.stt import GoogleSTTService, GoogleSTTSettings
@@ -416,6 +418,21 @@ def create_stt_service(
             ),
             sample_rate=audio_config.transport_in_sample_rate,
         )
+    elif user_config.stt.provider == ServiceProviders.FISH.value:
+        language_code = getattr(user_config.stt, "language", None) or "auto"
+        # "auto" — or a code pipecat doesn't know — sends no hint, which leaves
+        # Fish Audio to detect the language itself.
+        fish_language = None
+        if language_code.lower() != "auto":
+            try:
+                fish_language = Language(language_code)
+            except ValueError:
+                fish_language = None
+        return FishAudioSTTService(
+            api_key=user_config.stt.api_key,
+            settings=FishAudioSTTSettings(language=fish_language),
+            sample_rate=audio_config.transport_in_sample_rate,
+        )
     elif user_config.stt.provider == ServiceProviders.SONIOX.value:
         language_code = getattr(user_config.stt, "language", None) or "en"
         settings_kwargs: dict = {"model": user_config.stt.model}
@@ -750,6 +767,28 @@ def create_tts_service(
         return SmallestTTSService(
             api_key=user_config.tts.api_key,
             settings=settings_kwargs,
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
+    elif user_config.tts.provider == ServiceProviders.FISH.value:
+        language_code = getattr(user_config.tts, "language", None) or "en"
+        try:
+            pipecat_language = Language(language_code)
+        except ValueError:
+            pipecat_language = Language.EN
+        return FishAudioTTSService(
+            api_key=user_config.tts.api_key,
+            output_format="pcm",
+            sample_rate=audio_config.transport_out_sample_rate,
+            settings=FishAudioTTSSettings(
+                model=user_config.tts.model,
+                voice=user_config.tts.voice,
+                language=pipecat_language,
+                latency=getattr(user_config.tts, "latency", None) or "balanced",
+                prosody_speed=getattr(user_config.tts, "speed", None) or 1.0,
+                prosody_volume=getattr(user_config.tts, "volume", None) or 0,
+            ),
             text_filters=[xml_function_tag_filter],
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,
