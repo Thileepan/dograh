@@ -564,6 +564,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & SmallestAittsConfiguration) | ({
         provider: 'fish';
     } & FishAudioTtsConfiguration) | ({
+        provider: 'gradium';
+    } & GradiumTtsConfiguration) | ({
         provider: 'xai';
     } & XaittsConfiguration);
     /**
@@ -599,7 +601,9 @@ export type ByokPipelineAiModelConfiguration = {
         provider: 'soniox';
     } & SonioxSttConfiguration) | ({
         provider: 'fish';
-    } & FishAudioSttConfiguration);
+    } & FishAudioSttConfiguration) | ({
+        provider: 'gradium';
+    } & GradiumSttConfiguration);
     /**
      * Embeddings
      */
@@ -2541,12 +2545,6 @@ export type FishAudioTtsConfiguration = {
      */
     voice?: string;
     /**
-     * Language
-     *
-     * ISO 639-1 language code for synthesis. Fish Audio does not support Tamil.
-     */
-    language?: string;
-    /**
      * Latency
      *
      * Latency mode. 'balanced' trades a little quality for faster first audio; 'normal' favours quality.
@@ -2844,6 +2842,68 @@ export type GoogleVertexRealtimeLlmConfiguration = {
      * Paste the entire service-account JSON file contents. If omitted, falls back to Application Default Credentials (ADC).
      */
     credentials?: string | null;
+};
+
+/**
+ * Gradium
+ *
+ * Gradium low-latency streaming TTS and STT over websocket. One model covers English, French, German, Spanish and Portuguese.
+ */
+export type GradiumSttConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'gradium';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Gradium runs a single STT model. The API takes no model choice, so this value is not sent.
+     */
+    model?: string;
+    /**
+     * Language
+     *
+     * Transcription language. Gradium supports only these five; other codes are not recognised.
+     */
+    language?: string;
+    /**
+     * Delay In Frames
+     *
+     * Audio buffered before text is emitted, in 80ms frames — 12 is 960ms. Lower reacts faster, higher gives the model more context. Gradium accepts 7, 8, 10, 12, 14, 16, 20, 24, 36 and 48.
+     */
+    delay_in_frames?: number;
+};
+
+/**
+ * Gradium
+ *
+ * Gradium low-latency streaming TTS and STT over websocket. One model covers English, French, German, Spanish and Portuguese.
+ */
+export type GradiumTtsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'gradium';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * Gradium runs a single TTS model. The API takes no model choice, so this value is not sent.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Gradium voice ID — copy it from your Gradium account, including any voice you cloned there. The voice itself carries the language.
+     */
+    voice?: string;
 };
 
 /**

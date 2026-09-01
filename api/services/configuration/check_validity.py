@@ -66,6 +66,7 @@ class UserConfigurationValidator:
             ServiceProviders.SMALLEST.value: self._check_smallest_api_key,
             ServiceProviders.SONIOX.value: self._check_soniox_api_key,
             ServiceProviders.FISH.value: self._check_fish_api_key,
+            ServiceProviders.GRADIUM.value: self._check_gradium_api_key,
             ServiceProviders.XAI.value: self._check_xai_api_key,
         }
 
@@ -348,6 +349,11 @@ class UserConfigurationValidator:
         return True
 
     def _check_soniox_api_key(self, model: str, api_key: str) -> bool:
+        return True
+
+    def _check_gradium_api_key(self, model: str, api_key: str) -> bool:
+        # Gradium serves both TTS and ASR over websockets only, with no cheap
+        # REST endpoint to probe, so the key is validated on first connection.
         return True
 
     def _check_fish_api_key(self, model: str, api_key: str) -> bool:

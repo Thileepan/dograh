@@ -1,31 +1,16 @@
-"""Model, voice, and language options for the Fish Audio TTS provider."""
+"""Model, voice, and language options for the Fish Audio TTS and STT providers."""
 
-FISH_TTS_MODELS = ("s2-pro", "s1", "s1-mini")
+# Chosen per request via the `model` header. s1 covers 13 languages; s2-pro
+# covers 80+ and s2.1-pro 83, both detecting the language from the text itself.
+# s2.1-pro-free is s2.1-pro at no cost, without its latency or availability
+# guarantees.
+FISH_TTS_MODELS = ("s2-pro", "s2.1-pro", "s2.1-pro-free", "s1")
 
 # Fish Audio voices are ``reference_id`` model IDs from fish.audio — either a
 # public voice from their library or one cloned in the account that owns the
 # API key — so the UI accepts free-form input. This default is the public voice
-# used by pipecat's own Fish examples; replace it with an owned voice ID.
+# used by pipecat's Fish examples; replace it with an owned voice ID.
 FISH_TTS_DEFAULT_VOICE = "4ce7e917cedd4bc2bb2e6ff3a46acaa1"
-
-# Fish Audio's s1/s2 models cover these languages. Tamil is NOT among them —
-# use Sarvam for Tamil synthesis. The UI allows custom input, so any language
-# Fish adds later can be typed in directly.
-FISH_TTS_LANGUAGES = [
-    "en",
-    "zh",
-    "ja",
-    "de",
-    "fr",
-    "es",
-    "ko",
-    "ar",
-    "ru",
-    "nl",
-    "it",
-    "pl",
-    "pt",
-]
 
 FISH_TTS_LATENCY_MODES = ("balanced", "normal")
 
@@ -34,7 +19,29 @@ FISH_TTS_LATENCY_MODES = ("balanced", "normal")
 # the STT configuration shape consistent with the other providers.
 FISH_STT_MODELS = ("asr",)
 
-# The ASR endpoint auto-detects the spoken language; a hint is optional, so
-# "auto" (send no hint) is the default. The rest mirrors Fish's synthesis
-# coverage, and the UI allows custom input for anything not listed.
-FISH_STT_LANGUAGES = ["auto", *FISH_TTS_LANGUAGES]
+# The ASR endpoint detects the spoken language itself and a hint is optional, so
+# "auto" (send no hint) is the default. Fish does not publish which languages
+# the recognizer covers, so these are common codes to pick from rather than a
+# guarantee — the UI allows custom input for anything missing.
+FISH_STT_LANGUAGES = [
+    "auto",
+    "en",
+    "zh",
+    "ja",
+    "ko",
+    "de",
+    "fr",
+    "es",
+    "pt",
+    "it",
+    "nl",
+    "pl",
+    "ru",
+    "ar",
+    "hi",
+    "ta",
+    "th",
+    "vi",
+    "id",
+    "tr",
+]

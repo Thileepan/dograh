@@ -49,6 +49,8 @@ from pipecat.services.google.vertex.llm import (
     GoogleVertexLLMService,
     GoogleVertexLLMSettings,
 )
+from pipecat.services.gradium.stt import GradiumSTTService, GradiumSTTSettings
+from pipecat.services.gradium.tts import GradiumTTSService, GradiumTTSSettings
 from pipecat.services.groq.llm import GroqLLMService, GroqLLMSettings
 from pipecat.services.huggingface.llm import (
     HuggingFaceLLMService,
@@ -418,6 +420,22 @@ def create_stt_service(
             ),
             sample_rate=audio_config.transport_in_sample_rate,
         )
+    elif user_config.stt.provider == ServiceProviders.GRADIUM.value:
+        language_code = getattr(user_config.stt, "language", None) or "en"
+        try:
+            pipecat_language = Language(language_code)
+        except ValueError:
+            pipecat_language = Language.EN
+        # Gradium maps the Language enum itself when it opens the socket, so the
+        # enum is passed through rather than a service-specific string.
+        return GradiumSTTService(
+            api_key=user_config.stt.api_key,
+            settings=GradiumSTTSettings(
+                language=pipecat_language,
+                delay_in_frames=getattr(user_config.stt, "delay_in_frames", None) or 12,
+            ),
+            sample_rate=audio_config.transport_in_sample_rate,
+        )
     elif user_config.stt.provider == ServiceProviders.FISH.value:
         language_code = getattr(user_config.stt, "language", None) or "auto"
         # "auto" — or a code pipecat doesn't know — sends no hint, which leaves
@@ -771,12 +789,19 @@ def create_tts_service(
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,
         )
+    elif user_config.tts.provider == ServiceProviders.GRADIUM.value:
+        # Gradium always synthesises at 48kHz and sets that rate itself, so no
+        # sample rate is passed here; the output transport resamples.
+        return GradiumTTSService(
+            api_key=user_config.tts.api_key,
+            settings=GradiumTTSSettings(voice=user_config.tts.voice),
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
     elif user_config.tts.provider == ServiceProviders.FISH.value:
-        language_code = getattr(user_config.tts, "language", None) or "en"
-        try:
-            pipecat_language = Language(language_code)
-        except ValueError:
-            pipecat_language = Language.EN
+        # Fish Audio's TTS API takes no language parameter — the model detects
+        # the language from the text itself.
         return FishAudioTTSService(
             api_key=user_config.tts.api_key,
             output_format="pcm",
@@ -784,7 +809,6 @@ def create_tts_service(
             settings=FishAudioTTSSettings(
                 model=user_config.tts.model,
                 voice=user_config.tts.voice,
-                language=pipecat_language,
                 latency=getattr(user_config.tts, "latency", None) or "balanced",
                 prosody_speed=getattr(user_config.tts, "speed", None) or 1.0,
                 prosody_volume=getattr(user_config.tts, "volume", None) or 0,

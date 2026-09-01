@@ -25,11 +25,14 @@ from api.services.configuration.options import (
     FISH_STT_LANGUAGES,
     FISH_STT_MODELS,
     FISH_TTS_DEFAULT_VOICE,
-    FISH_TTS_LANGUAGES,
     FISH_TTS_LATENCY_MODES,
     FISH_TTS_MODELS,
     GLADIA_STT_LANGUAGES,
     GLADIA_STT_MODELS,
+    GRADIUM_LANGUAGES,
+    GRADIUM_MODELS,
+    GRADIUM_STT_DELAY_FRAMES,
+    GRADIUM_TTS_DEFAULT_VOICE,
     GOOGLE_MODELS,
     GOOGLE_REALTIME_LANGUAGES,
     GOOGLE_REALTIME_MODELS,
@@ -102,6 +105,7 @@ class ServiceProviders(str, Enum):
     SMALLEST = "smallest"
     SONIOX = "soniox"
     FISH = "fish"
+    GRADIUM = "gradium"
     XAI = "xai"
 
 
@@ -135,6 +139,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.SMALLEST,
         ServiceProviders.SONIOX,
         ServiceProviders.FISH,
+        ServiceProviders.GRADIUM,
         ServiceProviders.XAI,
     ]
     api_key: str | list[str]
@@ -1348,14 +1353,6 @@ class FishAudioTTSConfiguration(BaseTTSConfiguration):
         ),
         json_schema_extra={"allow_custom_input": True},
     )
-    language: str = Field(
-        default="en",
-        description="ISO 639-1 language code for synthesis. Fish Audio does not support Tamil.",
-        json_schema_extra={
-            "examples": FISH_TTS_LANGUAGES,
-            "allow_custom_input": True,
-        },
-    )
     latency: str = Field(
         default="balanced",
         description=(
@@ -1378,6 +1375,38 @@ class FishAudioTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+GRADIUM_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Gradium",
+    description=(
+        "Gradium low-latency streaming TTS and STT over websocket. One model "
+        "covers English, French, German, Spanish and Portuguese."
+    ),
+    provider_docs_url="https://gradium.ai",
+)
+
+
+@register_tts
+class GradiumTTSConfiguration(BaseTTSConfiguration):
+    model_config = GRADIUM_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.GRADIUM] = ServiceProviders.GRADIUM
+    model: str = Field(
+        default="default",
+        description=(
+            "Gradium runs a single TTS model. The API takes no model choice, so "
+            "this value is not sent."
+        ),
+        json_schema_extra={"examples": list(GRADIUM_MODELS)},
+    )
+    voice: str = Field(
+        default=GRADIUM_TTS_DEFAULT_VOICE,
+        description=(
+            "Gradium voice ID — copy it from your Gradium account, including any "
+            "voice you cloned there. The voice itself carries the language."
+        ),
+        json_schema_extra={"allow_custom_input": True},
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -1395,6 +1424,7 @@ TTSConfig = Annotated[
         AzureSpeechTTSConfiguration,
         SmallestAITTSConfiguration,
         FishAudioTTSConfiguration,
+        GradiumTTSConfiguration,
         XAITTSConfiguration,
     ],
     Field(discriminator="provider"),
@@ -1773,6 +1803,39 @@ class SonioxSTTConfiguration(BaseSTTConfiguration):
 
 
 @register_stt
+class GradiumSTTConfiguration(BaseSTTConfiguration):
+    model_config = GRADIUM_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.GRADIUM] = ServiceProviders.GRADIUM
+    model: str = Field(
+        default="default",
+        description=(
+            "Gradium runs a single STT model. The API takes no model choice, so "
+            "this value is not sent."
+        ),
+        json_schema_extra={"examples": list(GRADIUM_MODELS)},
+    )
+    language: str = Field(
+        default="en",
+        description=(
+            "Transcription language. Gradium supports only these five; other "
+            "codes are not recognised."
+        ),
+        json_schema_extra={"examples": GRADIUM_LANGUAGES},
+    )
+    delay_in_frames: int = Field(
+        default=12,
+        ge=7,
+        le=48,
+        description=(
+            "Audio buffered before text is emitted, in 80ms frames — 12 is 960ms. "
+            "Lower reacts faster, higher gives the model more context. Gradium "
+            "accepts 7, 8, 10, 12, 14, 16, 20, 24, 36 and 48."
+        ),
+        json_schema_extra={"examples": list(GRADIUM_STT_DELAY_FRAMES)},
+    )
+
+
+@register_stt
 class FishAudioSTTConfiguration(BaseSTTConfiguration):
     model_config = FISH_PROVIDER_MODEL_CONFIG
     provider: Literal[ServiceProviders.FISH] = ServiceProviders.FISH
@@ -1833,6 +1896,7 @@ STTConfig = Annotated[
         SmallestAISTTConfiguration,
         SonioxSTTConfiguration,
         FishAudioSTTConfiguration,
+        GradiumSTTConfiguration,
     ],
     Field(discriminator="provider"),
 ]
